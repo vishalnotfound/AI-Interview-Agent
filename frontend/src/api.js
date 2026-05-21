@@ -4,6 +4,14 @@ const API_BASE = window.location.port === '5173'
     ? 'http://localhost:8000'
     : 'https://ai-interview-agent-bot.onrender.com';
 
+/**
+ * Ping the backend /health endpoint to wake up the Render free-tier server.
+ * Called on app load so the server is already warm by the time the user uploads a resume.
+ */
+export function wakeUpBackend() {
+    fetch(`${API_BASE}/health`).catch(() => {});
+}
+
 export async function uploadResume(file) {
     const formData = new FormData();
     formData.append('file', file);

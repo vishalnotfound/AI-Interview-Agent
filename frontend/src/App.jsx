@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import ResumeUploader from './components/ResumeUploader';
 import InterviewSession from './components/InterviewSession';
 import FinalReport from './components/FinalReport';
+import { wakeUpBackend } from './api';
 import './App.css';
 
 // Cancel any leftover TTS immediately on page load (runs before React mounts)
@@ -15,6 +16,9 @@ export default function App() {
   const [showAbout, setShowAbout] = useState(false);
   const [showPro, setShowPro] = useState(false);
 
+  // Wake up the Render free-tier backend as soon as the app loads
+  useEffect(() => { wakeUpBackend(); }, []);
+
   const handleUploadSuccess = (data) => {
     setSessionId(data.session_id);
     setFirstQuestion(data.first_question);
@@ -24,6 +28,15 @@ export default function App() {
   const handleInterviewComplete = (report) => {
     setFinalReport(report);
     setPhase('report');
+  };
+
+  const handleInterviewCancel = () => {
+    // Reset all interview state and go back to upload
+    window.speechSynthesis?.cancel();
+    setSessionId('');
+    setFirstQuestion('');
+    setFinalReport(null);
+    setPhase('upload');
   };
 
   return (
@@ -73,6 +86,7 @@ export default function App() {
             sessionId={sessionId}
             firstQuestion={firstQuestion}
             onComplete={handleInterviewComplete}
+            onCancel={handleInterviewCancel}
           />
         )}
         {phase === 'report' && (

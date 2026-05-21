@@ -4,8 +4,9 @@ import { submitAnswer } from '../api';
 const TOTAL_QUESTIONS = 6;
 const MAX_RECORD_SECONDS = 120;
 const SILENCE_TIMEOUT_MS = 8000; // auto-submit after 8s of silence
+const MAX_WARNINGS = 2;
 
-export default function InterviewSession({ sessionId, firstQuestion, onComplete }) {
+export default function InterviewSession({ sessionId, firstQuestion, onComplete, onCancel }) {
   const [currentQuestion, setCurrentQuestion] = useState(firstQuestion);
   const [questionNumber, setQuestionNumber] = useState(1);
   const [transcript, setTranscript] = useState('');
@@ -15,6 +16,12 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete 
   const [error, setError] = useState('');
   const [timer, setTimer] = useState(MAX_RECORD_SECONDS);
   const [speechSupported, setSpeechSupported] = useState(true);
+
+  // ─── Proctoring state ───
+  const [warningCount, setWarningCount] = useState(0);
+  const [showWarning, setShowWarning] = useState(false);
+  const [warningMessage, setWarningMessage] = useState('');
+  const warningCountRef = useRef(0);
 
   // ─── Refs for mutable state (avoids stale closures) ───
   const recognitionRef = useRef(null);
@@ -44,6 +51,80 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete 
     window.addEventListener('beforeunload', handleUnload);
     return () => window.removeEventListener('beforeunload', handleUnload);
   }, []);
+
+  // ─── Proctoring: handle a violation (tab switch or fullscreen exit) ───
+  const handleViolation = useCallback((reason) => {
+    const newCount = warningCountRef.current + 1;
+    warningCountRef.current = newCount;
+    setWarningCount(newCount);
+
+    if (newCount > MAX_WARNINGS) {
+      // Out of warnings — cancel interview
+      window.speechSynthesis?.cancel();
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+      onCancel?.();
+      return;
+    }
+
+    setWarningMessage(
+      newCount === 1
+        ? `⚠️ ${reason}\n\nThis is your first warning. You have 1 warning left.\n\n⚠️ Note: One more violation and your interview will be cancelled. You will have to start over.`
+        : `🚨 ${reason}\n\nThis is your FINAL warning!\n\n🚨 The next violation WILL cancel your interview and you will be redirected to the home page.`
+    );
+    setShowWarning(true);
+  }, [onCancel]);
+
+  // ─── Proctoring: enter fullscreen on mount ───
+  useEffect(() => {
+    const enterFullscreen = async () => {
+      try {
+        await document.documentElement.requestFullscreen();
+      } catch (err) {
+        console.warn('Fullscreen request denied:', err);
+      }
+    };
+    enterFullscreen();
+
+    return () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+    };
+  }, []);
+
+  // ─── Proctoring: detect fullscreen exit ───
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        handleViolation('Fullscreen exit detected');
+      }
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, [handleViolation]);
+
+  // ─── Proctoring: detect tab switch / window blur ───
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        handleViolation('Tab switching detected');
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [handleViolation]);
+
+  // ─── Dismiss warning and re-enter fullscreen ───
+  const dismissWarning = async () => {
+    setShowWarning(false);
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (_) { /* ignore */ }
+  };
 
   // ─── Speak text via TTS ───
   const speakQuestion = useCallback((text) => {
@@ -243,7 +324,7 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    recognition.lang = 'en-IN';
 
     let finalTranscript = '';
 
@@ -291,7 +372,7 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete 
           const fresh = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
           fresh.continuous = true;
           fresh.interimResults = true;
-          fresh.lang = 'en-US';
+          fresh.lang = 'en-IN';
           fresh.onresult = recognition.onresult;
           fresh.onerror = recognition.onerror;
           fresh.onend = recognition.onend;
@@ -458,6 +539,27 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete 
       )}
 
       {error && <p className="error-text">{error}</p>}
+
+      {/* Proctoring warning counter */}
+      {warningCount > 0 && !showWarning && (
+        <div className="proctor-badge">
+          ⚠️ Warnings: {warningCount}/{MAX_WARNINGS}
+        </div>
+      )}
+
+      {/* Proctoring warning overlay */}
+      {showWarning && (
+        <div className="proctor-overlay">
+          <div className="proctor-modal">
+            <div className="proctor-icon">🚨</div>
+            <h2 className="proctor-title">Violation Detected</h2>
+            <p className="proctor-message">{warningMessage}</p>
+            <button className="btn btn-primary" onClick={dismissWarning} style={{ maxWidth: '260px' }}>
+              Return to Interview
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
