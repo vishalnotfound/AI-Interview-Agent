@@ -43,3 +43,96 @@ export async function submitAnswer(payload) {
 
     return res.json();
 }
+
+
+// ─── Auth API ───
+
+export async function apiSignup(name, email, password) {
+    const res = await fetch(`${API_BASE}/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Signup failed');
+    }
+
+    return res.json();
+}
+
+export async function apiLogin(email, password) {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Login failed');
+    }
+
+    return res.json();
+}
+
+export async function apiGetMe(token) {
+    const res = await fetch(`${API_BASE}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+        throw new Error('Not authenticated');
+    }
+
+    return res.json();
+}
+
+
+// ─── History API ───
+
+export async function apiSaveReport(token, report) {
+    const res = await fetch(`${API_BASE}/history/save`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(report),
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Failed to save report');
+    }
+
+    return res.json();
+}
+
+export async function apiGetHistory(token) {
+    const res = await fetch(`${API_BASE}/history/`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Failed to fetch history');
+    }
+
+    return res.json();
+}
+
+export async function apiDeleteReport(token, recordId) {
+    const res = await fetch(`${API_BASE}/history/${recordId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Failed to delete record');
+    }
+
+    return res.json();
+}

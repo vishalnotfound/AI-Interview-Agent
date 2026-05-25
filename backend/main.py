@@ -12,6 +12,9 @@ from services.groq_service import (
     generate_next_question,
     generate_final_report,
 )
+from database import create_tables
+from routes.auth import router as auth_router
+from routes.history import router as history_router
 
 # Configure logging
 logging.basicConfig(
@@ -41,13 +44,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include auth & history routers
+app.include_router(auth_router)
+app.include_router(history_router)
+
+
 @app.on_event("startup")
 async def startup_event():
-    """Validate environment on startup."""
+    """Validate environment and initialize database on startup."""
     if not os.getenv("GROQ_API_KEY"):
         logger.error("GROQ_API_KEY environment variable is not set!")
     else:
         logger.info("GROQ_API_KEY is configured.")
+
+    if not os.getenv("JWT_SECRET"):
+        logger.warning("JWT_SECRET is not set — using fallback (not secure for production).")
+
+    # Create database tables
+    try:
+        await create_tables()
+        logger.info("Database connected and tables verified.")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
 
 @app.get("/health")
 async def health_check():

@@ -2,19 +2,26 @@ import { useState, useEffect } from 'react';
 import ResumeUploader from './components/ResumeUploader';
 import InterviewSession from './components/InterviewSession';
 import FinalReport from './components/FinalReport';
-import { wakeUpBackend } from './api';
+import InterviewHistory from './components/InterviewHistory';
+import AuthModal from './components/AuthModal';
+import UserMenu from './components/UserMenu';
+import { useAuth } from './context/AuthContext';
+import { wakeUpBackend, apiSaveReport } from './api';
 import './App.css';
 
 // Cancel any leftover TTS immediately on page load (runs before React mounts)
 window.speechSynthesis?.cancel();
 
 export default function App() {
-  const [phase, setPhase] = useState('upload'); // upload | interview | report
+  const [phase, setPhase] = useState('upload'); // upload | interview | report | history
   const [sessionId, setSessionId] = useState('');
   const [firstQuestion, setFirstQuestion] = useState('');
   const [finalReport, setFinalReport] = useState(null);
   const [showAbout, setShowAbout] = useState(false);
   const [showPro, setShowPro] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
+
+  const { user, token, isLoggedIn } = useAuth();
 
   // Wake up the Render free-tier backend as soon as the app loads
   useEffect(() => { wakeUpBackend(); }, []);
@@ -25,9 +32,18 @@ export default function App() {
     setPhase('interview');
   };
 
-  const handleInterviewComplete = (report) => {
+  const handleInterviewComplete = async (report) => {
     setFinalReport(report);
     setPhase('report');
+
+    // Auto-save report if user is logged in
+    if (isLoggedIn && token) {
+      try {
+        await apiSaveReport(token, report);
+      } catch (err) {
+        console.error('Failed to auto-save report:', err);
+      }
+    }
   };
 
   const handleInterviewCancel = () => {
@@ -39,10 +55,17 @@ export default function App() {
     setPhase('upload');
   };
 
+  const handleGoHome = () => {
+    setPhase('upload');
+    setFinalReport(null);
+    setSessionId('');
+    setFirstQuestion('');
+  };
+
   return (
     <div className="app">
       <header className="app-header">
-        <span className="logo">
+        <span className="logo" onClick={handleGoHome} style={{ cursor: 'pointer' }}>
           <svg className="logo-icon" width="28" height="28" viewBox="0 0 64 64" style={{ borderRadius: '50%', background: '#fff', boxShadow: '0 2px 6px rgba(0,0,0,0.08)' }}>
             <circle cx="32" cy="32" r="32" fill="#ffffff" />
             <svg x="10" y="10" width="44" height="44" viewBox="6 4 52 52">
@@ -74,6 +97,19 @@ export default function App() {
               <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
             </svg>
           </a>
+          {/* Auth button — Login or UserMenu */}
+          {isLoggedIn ? (
+            <UserMenu onHistoryClick={() => setPhase('history')} />
+          ) : (
+            <button className="nav-btn auth-login-btn" onClick={() => setShowAuth(true)}>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                <polyline points="10 17 15 12 10 7" />
+                <line x1="15" y1="12" x2="3" y2="12" />
+              </svg>
+              Login
+            </button>
+          )}
         </div>
       </header>
 
@@ -91,6 +127,9 @@ export default function App() {
         )}
         {phase === 'report' && (
           <FinalReport report={finalReport} />
+        )}
+        {phase === 'history' && (
+          <InterviewHistory onBack={handleGoHome} />
         )}
       </main>
 
@@ -140,7 +179,7 @@ export default function App() {
               <span style={{ background: 'var(--warning)', color: '#fff', fontSize: '0.75rem', fontWeight: '700', padding: '2px 8px', borderRadius: '12px' }}>PAID</span>
             </div>
             <p className="about-desc" style={{ fontSize: '0.9rem' }}>
-              We’re continuously improving AI Interview Prep with powerful new features exclusively for paid users. Upgrade today to unlock:
+              We're continuously improving AI Interview Prep with powerful new features exclusively for paid users. Upgrade today to unlock:
             </p>
             <ul className="features-list">
               <li><strong>AI Video Proctoring</strong> – Ensure realistic, distraction-free interview environments</li>
@@ -156,6 +195,10 @@ export default function App() {
             </p>
           </div>
         </div>
+      )}
+
+      {showAuth && (
+        <AuthModal onClose={() => setShowAuth(false)} />
       )}
     </div>
   );
