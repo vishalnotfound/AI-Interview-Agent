@@ -23,7 +23,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("api")
 
-app = FastAPI(title="AI Interview Prep API")
+app = FastAPI(title="InterviewAI API")
 
 # Productive CORS — configurable via env var
 allowed_origins_raw = os.getenv(

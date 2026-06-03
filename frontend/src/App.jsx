@@ -139,7 +139,7 @@ export default function App() {
             <button className="close-btn" onClick={() => setShowAbout(false)}>×</button>
             <h2>About InterviewAI</h2>
             <p className="about-desc" style={{ marginBottom: '10px' }}>
-              InterviewAI is an AI-powered mock interview platform that analyzes your resume and conducts interactive, voice-based interviews. It adapts in real-time by generating questions based on your previous answers, simulating a realistic interview experience.
+              InterviewAI is an AI-powered interview platform that analyzes your resume and conducts interactive, voice-based interviews. It adapts in real-time by generating questions based on your previous answers, simulating a realistic interview experience.
             </p>
             <p className="about-desc" style={{ marginBottom: '16px' }}>
               Get a detailed report at the end with a score out of 100, along with insights into your strengths and areas for improvement—so you know exactly what to work on.
@@ -179,7 +179,7 @@ export default function App() {
               <span style={{ background: 'var(--warning)', color: '#fff', fontSize: '0.75rem', fontWeight: '700', padding: '2px 8px', borderRadius: '12px' }}>PAID</span>
             </div>
             <p className="about-desc" style={{ fontSize: '0.9rem' }}>
-              We're continuously improving AI Interview Prep with powerful new features exclusively for paid users. Upgrade today to unlock:
+              We're continuously improving InterviewAI with powerful new features:
             </p>
             <ul className="features-list">
               <li><strong>AI Video Proctoring</strong> – Ensure realistic, distraction-free interview environments</li>
