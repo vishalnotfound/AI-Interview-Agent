@@ -1,6 +1,6 @@
 // In production (Docker), nginx proxies API calls — use relative URLs.
-// In local dev (Vite on :5173), point to the backend directly.
-const API_BASE = window.location.port === '5173'
+// In local dev, point to the backend directly.
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:8000'
     : 'https://ai-interview-agent-bot.onrender.com';
 
@@ -47,8 +47,34 @@ export async function submitAnswer(payload) {
 
 // ─── Auth API ───
 
+/**
+ * fetch() wrapper with a timeout (default 30s).
+ * Prevents auth calls from hanging indefinitely when Render is cold-starting.
+ */
+async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        const res = await fetch(url, { ...options, signal: controller.signal });
+        return res;
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            throw new Error(
+                'Request timed out. The server may be waking up — please try again in a few seconds.'
+            );
+        }
+        // Network error (server unreachable, DNS failure, etc.)
+        throw new Error(
+            'Unable to reach the server. Please check your connection and try again.'
+        );
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 export async function apiSignup(name, email, password) {
-    const res = await fetch(`${API_BASE}/auth/signup`, {
+    const res = await fetchWithTimeout(`${API_BASE}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password }),
@@ -63,7 +89,7 @@ export async function apiSignup(name, email, password) {
 }
 
 export async function apiLogin(email, password) {
-    const res = await fetch(`${API_BASE}/auth/login`, {
+    const res = await fetchWithTimeout(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),

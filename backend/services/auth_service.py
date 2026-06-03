@@ -3,7 +3,7 @@ Authentication utilities: password hashing + JWT token management.
 """
 import os
 from datetime import datetime, timedelta, timezone
-from passlib.context import CryptContext
+import bcrypt
 from jose import jwt, JWTError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -15,9 +15,6 @@ JWT_SECRET = os.getenv("JWT_SECRET", "fallback-secret-change-me")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_DAYS = 7
 
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 # Bearer token extractor
 security = HTTPBearer()
 optional_security = HTTPBearer(auto_error=False)
@@ -25,12 +22,14 @@ optional_security = HTTPBearer(auto_error=False)
 
 def hash_password(plain: str) -> str:
     """Hash a plain-text password using bcrypt."""
-    return pwd_context.hash(plain)
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(plain.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
 
 
 def verify_password(plain: str, hashed: str) -> bool:
     """Verify a plain-text password against a bcrypt hash."""
-    return pwd_context.verify(plain, hashed)
+    return bcrypt.checkpw(plain.encode('utf-8'), hashed.encode('utf-8'))
 
 
 def create_access_token(user_id: str, email: str) -> str:

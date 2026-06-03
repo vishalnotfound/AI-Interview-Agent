@@ -21,17 +21,44 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    apiGetMe(token)
-      .then((userData) => {
-        setUser(userData);
-      })
-      .catch(() => {
-        // Token is invalid or expired — clear it
-        localStorage.removeItem('auth_token');
-        setToken(null);
-        setUser(null);
-      })
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    const MAX_RETRIES = 2;
+
+    const validateToken = async (attempt = 1) => {
+      try {
+        const userData = await apiGetMe(token);
+        if (!cancelled) setUser(userData);
+      } catch (err) {
+        if (cancelled) return;
+
+        // Only clear the token if the server explicitly says 401 (invalid/expired).
+        // The error message from api.js contains "Not authenticated" for 401s.
+        const isAuthError =
+          err.message === 'Not authenticated' ||
+          err.message?.includes('401');
+
+        if (isAuthError) {
+          // Token is genuinely invalid — clear it
+          localStorage.removeItem('auth_token');
+          setToken(null);
+          setUser(null);
+        } else if (attempt < MAX_RETRIES) {
+          // Network/timeout error — retry after a short delay
+          await new Promise((r) => setTimeout(r, 2000));
+          return validateToken(attempt + 1);
+        }
+        // If all retries exhausted for network errors, keep token and
+        // let the user stay "logged in" — next action will re-validate.
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    validateToken();
+
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
   const loginWithToken = (newToken, userData) => {
