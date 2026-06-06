@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { submitAnswer } from '../api';
+import { FaceDetector, FilesetResolver } from '@mediapipe/tasks-vision';
 
 const TOTAL_QUESTIONS = 6;
 const MAX_RECORD_SECONDS = 120;
@@ -30,6 +31,13 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete,
   const transcriptRef = useRef('');
   const isSubmittingRef = useRef(false);
   const shouldListenRef = useRef(false);
+
+  // ─── Proctoring / Video Refs ───
+  const videoRef = useRef(null);
+  const faceDetectorRef = useRef(null);
+  const streamRef = useRef(null);
+  const detectionIntervalRef = useRef(null);
+  const faceIssueTimerRef = useRef(null);
 
   // These refs always hold the LATEST values so any callback can read them
   const currentQuestionRef = useRef(firstQuestion);
@@ -76,23 +84,98 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete,
     setShowWarning(true);
   }, [onCancel]);
 
-  // ─── Proctoring: enter fullscreen on mount ───
+  // ─── Proctoring: Initialize MediaPipe & Camera & Fullscreen ───
   useEffect(() => {
-    const enterFullscreen = async () => {
+    let active = true;
+
+    const initProctoring = async () => {
       try {
-        await document.documentElement.requestFullscreen();
-      } catch (err) {
-        console.warn('Fullscreen request denied:', err);
+        // 1. Request camera first (prevents fullscreen exit on permission popup)
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } });
+        if (!active) return;
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+
+        // 2. Request fullscreen AFTER camera permissions
+        try {
+          if (!document.fullscreenElement) {
+            await document.documentElement.requestFullscreen();
+          }
+        } catch (err) {
+          console.warn('Fullscreen request denied:', err);
+        }
+
+        // 3. Initialize MediaPipe FaceDetector
+        const vision = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+        );
+        if (!active) return;
+
+        const detector = await FaceDetector.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite",
+            delegate: "GPU"
+          },
+          runningMode: "VIDEO"
+        });
+        if (!active) return;
+
+        faceDetectorRef.current = detector;
+
+        // 4. Start detection loop (2 FPS)
+        detectionIntervalRef.current = setInterval(() => {
+          if (!videoRef.current || videoRef.current.readyState < 2 || !faceDetectorRef.current) return;
+          
+          // Don't trigger violations if a warning is already showing
+          if (showWarning) return;
+
+          const startTimeMs = performance.now();
+          const results = faceDetectorRef.current.detectForVideo(videoRef.current, startTimeMs);
+          const numFaces = results.detections.length;
+          
+          if (numFaces !== 1) {
+             if (!faceIssueTimerRef.current) {
+                faceIssueTimerRef.current = setTimeout(() => {
+                   if (numFaces === 0) {
+                       handleViolation('No face detected. Please ensure you are looking at the screen.');
+                   } else if (numFaces > 1) {
+                       handleViolation('Multiple faces detected. You must take the interview alone.');
+                   }
+                   faceIssueTimerRef.current = null;
+                }, 4000); // Trigger after 4 seconds of continuous issue
+             }
+          } else {
+             if (faceIssueTimerRef.current) {
+                clearTimeout(faceIssueTimerRef.current);
+                faceIssueTimerRef.current = null;
+             }
+          }
+        }, 500);
+
+      } catch (error) {
+        console.error("Camera or MediaPipe init failed:", error);
       }
     };
-    enterFullscreen();
+
+    initProctoring();
 
     return () => {
+      active = false;
+      if (detectionIntervalRef.current) clearInterval(detectionIntervalRef.current);
+      if (faceIssueTimerRef.current) clearTimeout(faceIssueTimerRef.current);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
       if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => {});
       }
+      if (faceDetectorRef.current) {
+         faceDetectorRef.current.close();
+      }
     };
-  }, []);
+  }, [handleViolation, showWarning]);
 
   // ─── Proctoring: detect fullscreen exit ───
   useEffect(() => {
@@ -539,6 +622,17 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete,
       )}
 
       {error && <p className="error-text">{error}</p>}
+
+      {/* Proctoring Video Feed */}
+      <div className="proctoring-video-container">
+        <video 
+          ref={videoRef} 
+          autoPlay 
+          playsInline 
+          muted 
+          className="proctoring-video"
+        />
+      </div>
 
       {/* Proctoring warning counter */}
       {warningCount > 0 && !showWarning && (

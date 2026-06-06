@@ -12,6 +12,9 @@ from services.groq_service import (
     generate_next_question,
     generate_final_report,
 )
+from database import create_tables
+from routes.auth import router as auth_router
+from routes.history import router as history_router
 
 # Configure logging
 logging.basicConfig(
@@ -20,34 +23,47 @@ logging.basicConfig(
 )
 logger = logging.getLogger("api")
 
-app = FastAPI(title="AI Interview Prep API")
+app = FastAPI(title="InterviewAI API")
 
 # Productive CORS — configurable via env var
-allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost,http://127.0.0.1:5173")
-allowed_origins = [origin.strip() for origin in allowed_origins_raw.split(",")]
-
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=allowed_origins,
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+allowed_origins_raw = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:5173,http://localhost:3000,http://localhost,"
+    "http://127.0.0.1:5173,http://127.0.0.1:3000,"
+    "https://ai-interview-agent-bot.vercel.app",
+)
+allowed_origins = [origin.strip() for origin in allowed_origins_raw.split(",") if origin.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Include auth & history routers
+app.include_router(auth_router)
+app.include_router(history_router)
+
+
 @app.on_event("startup")
 async def startup_event():
-    """Validate environment on startup."""
+    """Validate environment and initialize database on startup."""
     if not os.getenv("GROQ_API_KEY"):
         logger.error("GROQ_API_KEY environment variable is not set!")
     else:
         logger.info("GROQ_API_KEY is configured.")
+
+    if not os.getenv("JWT_SECRET"):
+        logger.warning("JWT_SECRET is not set — using fallback (not secure for production).")
+
+    # Create database tables
+    try:
+        await create_tables()
+        logger.info("Database connected and tables verified.")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
 
 @app.get("/health")
 async def health_check():
