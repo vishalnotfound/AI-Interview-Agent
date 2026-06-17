@@ -2126,3 +2126,175 @@
         right: 16px;
     }
 }
+
+/* ========================================
+   GLOBAL RESPONSIVE ADJUSTMENTS
+   ======================================== */
+@media (max-width: 768px) {
+    /* Header & Navigation */
+    .app-header {
+        padding: 10px 16px;
+        margin: 8px 10px 0;
+        flex-wrap: wrap;
+        border-radius: 20px;
+    }
+    
+    .logo-text {
+        font-size: 1rem;
+    }
+
+    .header-actions {
+        gap: 8px;
+    }
+    
+    .nav-btn {
+        padding: 6px 10px;
+        font-size: 0.85rem;
+    }
+    
+    .nav-btn svg {
+        display: none; /* Hide icons in buttons to save space on mobile */
+    }
+
+    /* Main Layout Containers */
+    .app-main {
+        padding: 16px 12px 32px;
+    }
+
+    .upload-card {
+        flex-direction: column;
+        padding: 24px 16px;
+        text-align: center;
+        max-width: 100%;
+        border-radius: 16px;
+    }
+
+    .upload-card-left {
+        align-items: center;
+    }
+
+    .upload-card-right {
+        border-left: none;
+        border-top: 1px solid var(--border);
+        padding-left: 0;
+        padding-top: 24px;
+    }
+    
+    .hero-title {
+        font-size: 1.6rem;
+    }
+
+    /* Modals */
+    .about-modal {
+        padding: 24px 20px;
+        width: 95%;
+    }
+    
+    /* Interview Phase */
+    .interview-container {
+        padding: 0;
+        gap: 16px;
+    }
+    
+    .agent-avatar {
+        width: 90px;
+        height: 90px;
+    }
+    
+    .agent-icon {
+        font-size: 2.2rem;
+    }
+    
+    .transcript-box {
+        padding: 16px;
+        font-size: 1rem;
+    }
+    
+    .controls {
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px 12px;
+    }
+    
+    .controls-main {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-record, .btn-stop {
+        width: 100%;
+        padding: 14px;
+        font-size: 1rem;
+    }
+    
+    /* Final Report */
+    .report-container {
+        padding: 24px 16px;
+        margin: 0;
+        width: 100%;
+    }
+    
+    .score-circle {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .score-value {
+        font-size: 2.5rem;
+    }
+    
+    .report-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .metric-card, .feedback-card {
+        padding: 16px;
+    }
+    
+    /* History List */
+    .history-container {
+        padding: 20px 16px;
+        margin: 0;
+        width: 100%;
+    }
+
+    .history-list {
+        grid-template-columns: 1fr;
+    }
+    
+    .history-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 16px;
+    }
+    
+    .history-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .history-actions .btn {
+        flex: 1;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Even smaller adjustments for very narrow phones */
+    .logo-text {
+        display: none;
+    }
+    .logo {
+        gap: 0;
+    }
+    .feature-pills {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .hero-title {
+        font-size: 1.4rem;
+    }
+    .hero-subtitle {
+        font-size: 0.85rem;
+    }
+}
