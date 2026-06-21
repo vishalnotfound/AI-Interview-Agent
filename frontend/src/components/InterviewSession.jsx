@@ -7,6 +7,17 @@ const MAX_RECORD_SECONDS = 120;
 const SILENCE_TIMEOUT_MS = 8000; // auto-submit after 8s of silence
 const MAX_WARNINGS = 2;
 
+// Objects that indicate potential cheating
+const SUSPICIOUS_OBJECTS = new Set([
+  'cell phone', 'book', 'laptop', 'remote', 'tablet',
+]);
+
+// Minimum seconds between captures for the SAME object type
+const CAPTURE_DEBOUNCE_SEC = 10;
+
+// Minimum detection confidence to trigger a flag
+const MIN_CONFIDENCE = 0.55;
+
 export default function InterviewSession({ sessionId, firstQuestion, onComplete, onCancel }) {
   const [currentQuestion, setCurrentQuestion] = useState(firstQuestion);
   const [questionNumber, setQuestionNumber] = useState(1);
@@ -22,7 +33,11 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete,
   const [warningCount, setWarningCount] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
   const [warningMessage, setWarningMessage] = useState('');
-  const warningCountRef = useRef(0);
+  warningCountRef = useRef(0);
+
+  // ─── Object detection state ───
+  const [detectedObjects, setDetectedObjects] = useState([]); // live display
+  const [flagCount, setFlagCount] = useState(0);
 
   // ─── Refs for mutable state (avoids stale closures) ───
   const recognitionRef = useRef(null);
@@ -31,6 +46,7 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete,
   const transcriptRef = useRef('');
   const isSubmittingRef = useRef(false);
   const shouldListenRef = useRef(false);
+  const warningCountRef = useRef(0);
 
   // ─── Proctoring / Video Refs ───
   const videoRef = useRef(null);
@@ -38,6 +54,12 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete,
   const streamRef = useRef(null);
   const detectionIntervalRef = useRef(null);
   const faceIssueTimerRef = useRef(null);
+
+  // ─── Object Detection Refs ───
+  const cocoModelRef = useRef(null);
+  const proctorFlagsRef = useRef([]); // Array of { timestamp, object_label, confidence, screenshot }
+  const lastCaptureTimeRef = useRef({}); // { "cell phone": timestamp, ... }
+  const screenshotCanvasRef = useRef(null);
 
   // These refs always hold the LATEST values so any callback can read them
   const currentQuestionRef = useRef(firstQuestion);
@@ -59,6 +81,63 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete,
     window.addEventListener('beforeunload', handleUnload);
     return () => window.removeEventListener('beforeunload', handleUnload);
   }, []);
+
+  // ─── Capture screenshot from video element ───
+  const captureScreenshot = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || video.readyState < 2) return null;
+
+    if (!screenshotCanvasRef.current) {
+      screenshotCanvasRef.current = document.createElement('canvas');
+    }
+    const canvas = screenshotCanvasRef.current;
+    canvas.width = video.videoWidth || 320;
+    canvas.height = video.videoHeight || 240;
+
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.5); // Low quality to save space
+  }, []);
+
+  // ─── Handle object detection result ───
+  const handleObjectDetection = useCallback((predictions) => {
+    const now = Date.now();
+    const suspicious = predictions.filter(
+      (p) => SUSPICIOUS_OBJECTS.has(p.class) && p.score >= MIN_CONFIDENCE
+    );
+
+    // Update live display (all suspicious objects currently visible)
+    if (suspicious.length > 0) {
+      setDetectedObjects(
+        suspicious.map((p) => ({
+          label: p.class,
+          confidence: Math.round(p.score * 100),
+        }))
+      );
+    } else {
+      setDetectedObjects([]);
+    }
+
+    // Capture screenshots (with debounce per object type)
+    for (const pred of suspicious) {
+      const lastCapture = lastCaptureTimeRef.current[pred.class] || 0;
+      if (now - lastCapture < CAPTURE_DEBOUNCE_SEC * 1000) continue;
+
+      const screenshot = captureScreenshot();
+      if (!screenshot) continue;
+
+      const flag = {
+        timestamp: new Date().toISOString(),
+        object_label: pred.class,
+        confidence: Math.round(pred.score * 100) / 100,
+        screenshot,
+      };
+
+      proctorFlagsRef.current.push(flag);
+      lastCaptureTimeRef.current[pred.class] = now;
+      setFlagCount(proctorFlagsRef.current.length);
+    }
+  }, [captureScreenshot]);
 
   // ─── Proctoring: handle a violation (tab switch or fullscreen exit) ───
   const handleViolation = useCallback((reason) => {
@@ -84,7 +163,7 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete,
     setShowWarning(true);
   }, [onCancel]);
 
-  // ─── Proctoring: Initialize MediaPipe & Camera & Fullscreen ───
+  // ─── Proctoring: Initialize MediaPipe & Camera & Fullscreen & COCO-SSD ───
   useEffect(() => {
     let active = true;
 
@@ -124,33 +203,58 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete,
 
         faceDetectorRef.current = detector;
 
-        // 4. Start detection loop (2 FPS)
-        detectionIntervalRef.current = setInterval(() => {
-          if (!videoRef.current || videoRef.current.readyState < 2 || !faceDetectorRef.current) return;
+        // 4. Initialize COCO-SSD object detection model
+        let cocoModel = null;
+        try {
+          const cocoSsd = await import('@tensorflow-models/coco-ssd');
+          cocoModel = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+          if (!active) return;
+          cocoModelRef.current = cocoModel;
+          console.log('✅ COCO-SSD model loaded for object detection');
+        } catch (err) {
+          console.warn('⚠️ COCO-SSD failed to load, object detection disabled:', err);
+        }
+
+        // 5. Start detection loop (2 FPS)
+        detectionIntervalRef.current = setInterval(async () => {
+          if (!videoRef.current || videoRef.current.readyState < 2) return;
           
           // Don't trigger violations if a warning is already showing
           if (showWarning) return;
 
-          const startTimeMs = performance.now();
-          const results = faceDetectorRef.current.detectForVideo(videoRef.current, startTimeMs);
-          const numFaces = results.detections.length;
-          
-          if (numFaces !== 1) {
-             if (!faceIssueTimerRef.current) {
-                faceIssueTimerRef.current = setTimeout(() => {
-                   if (numFaces === 0) {
-                       handleViolation('No face detected. Please ensure you are looking at the screen.');
-                   } else if (numFaces > 1) {
-                       handleViolation('Multiple faces detected. You must take the interview alone.');
-                   }
-                   faceIssueTimerRef.current = null;
-                }, 4000); // Trigger after 4 seconds of continuous issue
-             }
-          } else {
-             if (faceIssueTimerRef.current) {
-                clearTimeout(faceIssueTimerRef.current);
-                faceIssueTimerRef.current = null;
-             }
+          // --- Face detection (existing) ---
+          if (faceDetectorRef.current) {
+            const startTimeMs = performance.now();
+            const results = faceDetectorRef.current.detectForVideo(videoRef.current, startTimeMs);
+            const numFaces = results.detections.length;
+            
+            if (numFaces !== 1) {
+               if (!faceIssueTimerRef.current) {
+                  faceIssueTimerRef.current = setTimeout(() => {
+                     if (numFaces === 0) {
+                         handleViolation('No face detected. Please ensure you are looking at the screen.');
+                     } else if (numFaces > 1) {
+                         handleViolation('Multiple faces detected. You must take the interview alone.');
+                     }
+                     faceIssueTimerRef.current = null;
+                  }, 4000); // Trigger after 4 seconds of continuous issue
+               }
+            } else {
+               if (faceIssueTimerRef.current) {
+                  clearTimeout(faceIssueTimerRef.current);
+                  faceIssueTimerRef.current = null;
+               }
+            }
+          }
+
+          // --- Object detection (NEW) ---
+          if (cocoModelRef.current) {
+            try {
+              const predictions = await cocoModelRef.current.detect(videoRef.current);
+              handleObjectDetection(predictions);
+            } catch (err) {
+              // Silently ignore detection errors (e.g. frame timing issues)
+            }
           }
         }, 500);
 
@@ -174,8 +278,12 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete,
       if (faceDetectorRef.current) {
          faceDetectorRef.current.close();
       }
+      // Dispose COCO-SSD model
+      if (cocoModelRef.current) {
+        cocoModelRef.current.dispose?.();
+      }
     };
-  }, [handleViolation, showWarning]);
+  }, [handleViolation, handleObjectDetection, showWarning]);
 
   // ─── Proctoring: detect fullscreen exit ───
   useEffect(() => {
@@ -328,6 +436,8 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete,
       });
 
       if (data.final_report) {
+        // Attach proctor flags to the report before completing
+        data.final_report.proctor_flags = [...proctorFlagsRef.current];
         await speakQuestion("Great job! Your interview is complete. Here are your results.");
         onComplete(data.final_report);
         isSubmittingRef.current = false;
@@ -632,6 +742,22 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete,
           muted 
           className="proctoring-video"
         />
+        {/* Object detection live indicator */}
+        {detectedObjects.length > 0 && (
+          <div className="proctor-object-alert">
+            {detectedObjects.map((obj, i) => (
+              <span key={i} className="proctor-object-tag">
+                📱 {obj.label} ({obj.confidence}%)
+              </span>
+            ))}
+          </div>
+        )}
+        {/* Flag count badge */}
+        {flagCount > 0 && (
+          <div className="proctor-flag-count">
+            🚩 {flagCount}
+          </div>
+        )}
       </div>
 
       {/* Proctoring warning counter */}

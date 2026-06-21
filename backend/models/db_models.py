@@ -42,6 +42,9 @@ class InterviewRecord(Base):
     # Relationship back to user
     user = relationship("User", back_populates="interviews")
 
+    # Relationship to proctor flags
+    proctor_flags = relationship("ProctorFlag", back_populates="record", cascade="all, delete-orphan")
+
     def to_dict(self):
         return {
             "id": str(self.id),
@@ -52,4 +55,34 @@ class InterviewRecord(Base):
             "hire_recommendation": self.hire_recommendation,
             "improvement_roadmap": self.improvement_roadmap,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "flag_count": len(self.proctor_flags) if self.proctor_flags else 0,
+        }
+
+
+class ProctorFlag(Base):
+    """Stores a single proctoring detection event with a screenshot."""
+    __tablename__ = "proctor_flags"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    record_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_records.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    timestamp = Column(String(50), nullable=False)
+    object_label = Column(String(50), nullable=False)
+    confidence = Column(Float, nullable=False)
+    screenshot = Column(Text, nullable=False)  # base64 JPEG data URL
+
+    # Relationship back to interview record
+    record = relationship("InterviewRecord", back_populates="proctor_flags")
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "timestamp": self.timestamp,
+            "object_label": self.object_label,
+            "confidence": self.confidence,
+            "screenshot": self.screenshot,
         }
