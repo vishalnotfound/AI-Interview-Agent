@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import ResumeUploader from './components/ResumeUploader';
+import PreInterviewCheck from './components/PreInterviewCheck';
 import InterviewSession from './components/InterviewSession';
 import FinalReport from './components/FinalReport';
 import InterviewHistory from './components/InterviewHistory';
@@ -13,7 +14,7 @@ import './App.css';
 window.speechSynthesis?.cancel();
 
 export default function App() {
-  const [phase, setPhase] = useState('upload'); // upload | interview | report | history
+  const [phase, setPhase] = useState('upload'); // upload | system-check | interview | report | history
   const [sessionId, setSessionId] = useState('');
   const [firstQuestion, setFirstQuestion] = useState('');
   const [finalReport, setFinalReport] = useState(null);
@@ -29,6 +30,10 @@ export default function App() {
   const handleUploadSuccess = (data) => {
     setSessionId(data.session_id);
     setFirstQuestion(data.first_question);
+    setPhase('system-check');
+  };
+
+  const handleSystemCheckComplete = () => {
     setPhase('interview');
   };
 
@@ -116,6 +121,12 @@ export default function App() {
       <main className="app-main">
         {phase === 'upload' && (
           <ResumeUploader onUploadSuccess={handleUploadSuccess} />
+        )}
+        {phase === 'system-check' && (
+          <PreInterviewCheck 
+            onReady={handleSystemCheckComplete}
+            onCancel={handleInterviewCancel}
+          />
         )}
         {phase === 'interview' && (
           <InterviewSession

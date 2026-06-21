@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 
 export default function ResumeUploader({ onUploadSuccess }) {
   const [file, setFile] = useState(null);
@@ -7,40 +7,6 @@ export default function ResumeUploader({ onUploadSuccess }) {
   const [parsed, setParsed] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const fileRef = useRef(null);
-
-  // System Check State
-  const [camStatus, setCamStatus] = useState('checking'); // checking | ok | error
-  const [micStatus, setMicStatus] = useState('checking');
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
-
-  useEffect(() => {
-    let active = true;
-    const checkSystems = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        if (!active) return;
-        setCamStatus('ok');
-        setMicStatus('ok');
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (err) {
-        if (!active) return;
-        setCamStatus('error');
-        setMicStatus('error');
-        console.error("System check failed:", err);
-      }
-    };
-    checkSystems();
-    return () => {
-      active = false;
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, []);
 
   const validateFile = (selected) => {
     const ext = selected.name.split('.').pop().toLowerCase();
@@ -83,10 +49,6 @@ export default function ResumeUploader({ onUploadSuccess }) {
       setError('Please select a file first.');
       return;
     }
-    if (camStatus !== 'ok') {
-      setError('Camera & Microphone access is required to proceed.');
-      return;
-    }
     setLoading(true);
     setError('');
 
@@ -121,46 +83,23 @@ export default function ResumeUploader({ onUploadSuccess }) {
 
       <div className="upload-card">
         <div className="upload-card-left">
-          <div className="system-check-container">
-            <h2 className="system-check-title">System Check</h2>
-            <div className="system-video-wrapper">
-              <video 
-                ref={videoRef} 
-                autoPlay 
-                playsInline 
-                muted 
-                className={`system-video ${camStatus === 'ok' ? 'active' : ''}`}
-              />
-              {camStatus !== 'ok' && (
-                <div className="system-video-placeholder">
-                  {camStatus === 'checking' ? (
-                    <>
-                      <div className="spinner-sm"></div>
-                      <p>Requesting camera...</p>
-                    </>
-                  ) : (
-                    <>
-                      <span className="error-icon">⚠️</span>
-                      <p>Camera access denied</p>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="system-status-pills">
-              <div className={`status-pill ${camStatus}`}>
-                <span className="status-icon">📷</span>
-                <span>Camera: {camStatus === 'checking' ? 'Checking' : camStatus === 'ok' ? 'Ready' : 'Error'}</span>
-              </div>
-              <div className={`status-pill ${micStatus}`}>
-                <span className="status-icon">🎤</span>
-                <span>Microphone: {micStatus === 'checking' ? 'Checking' : micStatus === 'ok' ? 'Ready' : 'Error'}</span>
-              </div>
-            </div>
+          {/* Hero Icon */}
+          <div className="hero-icon-wrap">
+            <div className={`hero-ring ${loading ? 'processing' : parsed ? 'done' : ''}`}></div>
+            <svg className="hero-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="8" y="6" width="48" height="52" rx="6" stroke="var(--primary)" strokeWidth="2.5" fill="none"/>
+              <path d="M20 22h24M20 30h24M20 38h16" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round"/>
+              <circle cx="48" cy="48" r="14" fill="var(--bg)" stroke="var(--success)" strokeWidth="2.5"/>
+              <path d="M44 48l3 3 6-6" stroke="var(--success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </div>
 
+        {/* Title & Subtitle */}
+        <h1 className="hero-title">InterviewAI</h1>
+        <p className="hero-subtitle">Upload your resume and ace your next interview with AI-powered mock sessions</p>
+
         {/* Feature Pills */}
-        <div className="feature-pills" style={{ marginTop: 'auto' }}>
+        <div className="feature-pills">
           <span className="pill">
             <span className="pill-icon">🎯</span>
             <span>Tailored Questions</span>
