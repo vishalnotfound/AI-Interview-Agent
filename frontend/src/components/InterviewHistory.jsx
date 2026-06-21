@@ -132,25 +132,12 @@ export default function InterviewHistory({ onBack }) {
               <h3 className="proctor-log-title">
                 🛡️ Proctoring Log
               </h3>
-              {!proctorLoading && (
-                <span className={`proctor-log-status ${proctorFlags.length === 0 ? 'clean' : 'flagged'}`}>
-                  {proctorFlags.length === 0 ? '✅ Clean Session' : `🚩 ${proctorFlags.length} Flag${proctorFlags.length > 1 ? 's' : ''}`}
-                </span>
-              )}
             </div>
 
             {proctorLoading && (
               <div className="proctor-log-loading">
                 <div className="spinner" />
                 <span>Loading proctoring data…</span>
-              </div>
-            )}
-
-            {!proctorLoading && proctorFlags.length === 0 && (
-              <div className="proctor-log-empty">
-                <div className="proctor-log-empty-icon">🎉</div>
-                <p>No suspicious items were detected during this interview.</p>
-                <p className="proctor-log-empty-sub">The session was completed without any proctoring flags.</p>
               </div>
             )}
 
