@@ -33,7 +33,7 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete,
   const [warningCount, setWarningCount] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
   const [warningMessage, setWarningMessage] = useState('');
-  warningCountRef = useRef(0);
+  const [isFaceIssue, setIsFaceIssue] = useState(false); // real-time red border
 
   // ─── Object detection state ───
   const [detectedObjects, setDetectedObjects] = useState([]); // live display
@@ -229,6 +229,7 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete,
             const numFaces = results.detections.length;
             
             if (numFaces !== 1) {
+               setIsFaceIssue(true);
                if (!faceIssueTimerRef.current) {
                   faceIssueTimerRef.current = setTimeout(() => {
                      if (numFaces === 0) {
@@ -240,6 +241,7 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete,
                   }, 4000); // Trigger after 4 seconds of continuous issue
                }
             } else {
+               setIsFaceIssue(false);
                if (faceIssueTimerRef.current) {
                   clearTimeout(faceIssueTimerRef.current);
                   faceIssueTimerRef.current = null;
@@ -734,7 +736,7 @@ export default function InterviewSession({ sessionId, firstQuestion, onComplete,
       {error && <p className="error-text">{error}</p>}
 
       {/* Proctoring Video Feed */}
-      <div className="proctoring-video-container">
+      <div className={`proctoring-video-container ${isFaceIssue || detectedObjects.length > 0 ? 'violation-active' : ''}`}>
         <video 
           ref={videoRef} 
           autoPlay 
