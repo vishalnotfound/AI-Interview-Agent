@@ -5,6 +5,7 @@
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
 }
 
 .app-header {
@@ -2636,6 +2637,33 @@
 /* ========================================
    GLOBAL RESPONSIVE ADJUSTMENTS
    ======================================== */
+
+/* TABLET & SMALL DESKTOP (1024px and below) */
+@media (max-width: 1024px) {
+    .app-header {
+        padding: 12px 20px;
+    }
+    .upload-card {
+        padding: 30px;
+        max-width: 90%;
+    }
+    .hero-title {
+        font-size: 1.8rem;
+    }
+    .interview-container {
+        max-width: 90%;
+    }
+    .proctoring-video-container {
+        width: 100%;
+        max-width: 480px;
+        margin: 0 auto;
+    }
+    .report-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* TABLET PORTRAIT & LARGE PHONES (768px and below) */
 @media (max-width: 768px) {
     /* Header & Navigation */
     .app-header {
@@ -2684,22 +2712,36 @@
         border-top: 1px solid var(--border);
         padding-left: 0;
         padding-top: 24px;
+        width: 100%;
     }
     
     .hero-title {
         font-size: 1.6rem;
     }
 
+    /* Pre-Interview Check */
+    .system-check-card {
+        padding: 20px;
+        margin: 10px;
+    }
+    .check-list {
+        grid-template-columns: 1fr;
+    }
+
     /* Modals */
-    .about-modal {
+    .about-modal, .auth-modal-panel {
         padding: 24px 20px;
-        width: 95%;
+        width: 95vw;
+        max-width: 95vw;
+        max-height: 90vh;
+        overflow-y: auto;
     }
     
     /* Interview Phase */
     .interview-container {
         padding: 0;
         gap: 16px;
+        width: 100%;
     }
     
     .agent-avatar {
@@ -2785,13 +2827,22 @@
     }
 }
 
+/* SMALL PHONES (480px and below) */
 @media (max-width: 480px) {
     /* Even smaller adjustments for very narrow phones */
+    .app-header {
+        padding: 8px 12px;
+    }
     .logo-text {
         display: none;
     }
     .logo {
         gap: 0;
+    }
+    .header-actions {
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 10px;
     }
     .feature-pills {
         flex-direction: column;
@@ -2802,5 +2853,53 @@
     }
     .hero-subtitle {
         font-size: 0.85rem;
+    }
+    .upload-card {
+        padding: 16px 12px;
+    }
+    .about-modal {
+        padding: 16px 12px;
+    }
+    .agent-avatar {
+        width: 70px;
+        height: 70px;
+    }
+    .agent-icon {
+        font-size: 1.8rem;
+    }
+    .question-bubble {
+        padding: 12px;
+        font-size: 1.1rem;
+    }
+    .transcript-box {
+        padding: 12px;
+        font-size: 0.95rem;
+    }
+    .score-circle {
+        width: 100px;
+        height: 100px;
+    }
+    .score-value {
+        font-size: 2rem;
+    }
+    .history-actions {
+        flex-direction: column;
+    }
+    .history-actions .btn {
+        width: 100%;
+    }
+}
+
+/* EXTRA NARROW SCREENS (360px and below) */
+@media (max-width: 360px) {
+    .hero-title {
+        font-size: 1.2rem;
+    }
+    .app-main {
+        padding: 10px 8px 24px;
+    }
+    .nav-btn {
+        padding: 4px 8px;
+        font-size: 0.75rem;
     }
 }
