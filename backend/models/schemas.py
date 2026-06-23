@@ -37,3 +37,10 @@ class FinalReport(BaseModel):
 
 class FinalReportResponse(BaseModel):
     final_report: FinalReport
+
+
+class ProctorFlagItem(BaseModel):
+    timestamp: str
+    object_label: str
+    confidence: float
+    screenshot: str

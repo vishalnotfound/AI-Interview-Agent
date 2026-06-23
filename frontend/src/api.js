@@ -162,3 +162,19 @@ export async function apiDeleteReport(token, recordId) {
 
     return res.json();
 }
+
+
+// ─── Proctoring API ───
+
+export async function apiGetProctorFlags(token, recordId) {
+    const res = await fetch(`${API_BASE}/history/${recordId}/proctor-flags`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Failed to fetch proctor flags');
+    }
+
+    return res.json();
+}

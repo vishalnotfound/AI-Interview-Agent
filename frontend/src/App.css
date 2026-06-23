@@ -5,6 +5,7 @@
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
 }
 
 .app-header {
@@ -99,6 +100,11 @@
     overflow: hidden;
 }
 
+.btn > * {
+    position: relative;
+    z-index: 1;
+}
+
 .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -111,6 +117,7 @@
     border-radius: inherit;
     opacity: 0;
     transition: opacity 0.3s;
+    z-index: 0;
 }
 
 .btn-glow:hover::after {
@@ -1954,6 +1961,99 @@
     font-weight: 800;
 }
 
+.upload-card-left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding-right: 20px;
+}
+
+/* ─── System Check (Home Screen Camera) ─── */
+.system-check-container {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.system-check-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0;
+}
+
+.system-video-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.system-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.system-video.active {
+    opacity: 1;
+}
+
+.system-video-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.system-status-pills {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    transition: all 0.3s ease;
+}
+
+.status-pill.ok {
+    background: rgba(0, 168, 98, 0.1);
+    color: var(--success);
+    border-color: rgba(0, 168, 98, 0.3);
+}
+
+.status-pill.error {
+    background: rgba(207, 42, 39, 0.1);
+    color: var(--danger);
+    border-color: rgba(207, 42, 39, 0.3);
+}
+
 .history-card-info {
     flex: 1;
     display: flex;
@@ -2101,28 +2201,705 @@
     position: fixed;
     bottom: 24px;
     right: 24px;
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 3px solid var(--primary);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    width: 240px;
+    height: 180px;
+    border-radius: 12px;
+    overflow: visible;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     z-index: 1000;
     background: #000;
+    transition: all 0.3s ease;
 }
 
-.proctoring-video {
+.proctoring-video-container::after {
+    content: "🔴 REC";
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+    letter-spacing: 1px;
+    backdrop-filter: blur(4px);
+    z-index: 10;
+    pointer-events: none;
+    animation: pulse-dot 2s infinite;
+}
+
+/* Violation State */
+.proctoring-video-container.violation-active {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 4px rgba(207, 42, 39, 0.2), 0 8px 32px rgba(207, 42, 39, 0.4);
+    animation: shakeIn 0.4s ease;
+}
+
+.proctoring-video-container.violation-active::after {
+    content: "⚠️ ALERT";
+    color: var(--danger);
+}
+
+.proctoring-video-container > video {
     width: 100%;
     height: 100%;
     object-fit: cover;
     transform: scaleX(-1); /* Mirror the webcam */
+    border-radius: 10px;
+}
+
+/* ─── Live Object Detection Alert on Video ─── */
+.proctor-object-alert {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-end;
+    animation: fadeIn 0.3s ease;
+    z-index: 10;
+}
+
+.proctor-object-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: rgba(207, 42, 39, 0.92);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border-radius: 6px;
+    white-space: nowrap;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 2px 8px rgba(207, 42, 39, 0.4);
+}
+
+/* ─── Flag Count Badge on Video ─── */
+.proctor-flag-count {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    left: auto;
+    width: 28px;
+    height: 28px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 800;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--surface);
+    box-shadow: 0 2px 8px rgba(207, 42, 39, 0.4);
 }
 
 @media (max-width: 600px) {
     .proctoring-video-container {
-        width: 90px;
-        height: 90px;
+        width: 160px;
+        height: 120px;
         bottom: 16px;
         right: 16px;
+    }
+}
+
+/* ========================================
+   PROCTORING LOG — History Page
+   ======================================== */
+.proctor-log-section {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    margin-top: 8px;
+    animation: slideUp 0.4s ease;
+}
+
+.proctor-log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.proctor-log-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text);
+}
+
+.proctor-log-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.proctor-log-status.clean {
+    background: rgba(0, 168, 98, 0.1);
+    color: var(--success);
+    border: 1px solid rgba(0, 168, 98, 0.25);
+}
+
+.proctor-log-status.flagged {
+    background: rgba(207, 42, 39, 0.08);
+    color: var(--danger);
+    border: 1px solid rgba(207, 42, 39, 0.25);
+}
+
+/* ─── Empty State ─── */
+.proctor-log-empty {
+    text-align: center;
+    padding: 32px 16px;
+}
+
+.proctor-log-empty-icon {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+    line-height: 1;
+}
+
+.proctor-log-empty p {
+    color: var(--text-muted);
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+.proctor-log-empty-sub {
+    font-size: 0.82rem !important;
+    opacity: 0.7;
+    margin-top: 4px;
+}
+
+/* ─── Loading State ─── */
+.proctor-log-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 32px 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+/* ─── Timeline ─── */
+.proctor-log-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.proctor-log-item {
+    display: flex;
+    gap: 16px;
+    position: relative;
+}
+
+.proctor-log-item-marker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    width: 20px;
+    padding-top: 6px;
+}
+
+.proctor-log-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--danger);
+    border: 2px solid var(--surface);
+    box-shadow: 0 0 0 3px rgba(207, 42, 39, 0.15);
+    flex-shrink: 0;
+    z-index: 1;
+}
+
+.proctor-log-line {
+    width: 2px;
+    flex: 1;
+    background: linear-gradient(180deg, rgba(207, 42, 39, 0.3), rgba(207, 42, 39, 0.08));
+    margin: 4px 0;
+}
+
+.proctor-log-item-content {
+    flex: 1;
+    padding-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.proctor-log-item-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.proctor-log-item-icon {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.proctor-log-item-label {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text);
+    text-transform: capitalize;
+}
+
+.proctor-log-item-confidence {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--danger);
+    background: rgba(207, 42, 39, 0.08);
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.proctor-log-item-time {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-left: auto;
+}
+
+/* ─── Screenshot Thumbnail ─── */
+.proctor-log-thumbnail {
+    position: relative;
+    width: 200px;
+    height: 150px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.proctor-log-thumbnail:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+    border-color: var(--primary);
+}
+
+.proctor-log-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.proctor-log-thumbnail-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.proctor-log-thumbnail:hover .proctor-log-thumbnail-overlay {
+    opacity: 1;
+}
+
+.proctor-log-thumbnail-overlay span {
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+/* ========================================
+   PROCTORING LIGHTBOX
+   ======================================== */
+.proctor-lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(12px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    animation: fadeIn 0.3s ease;
+    cursor: pointer;
+}
+
+.proctor-lightbox-content {
+    position: relative;
+    max-width: 90vw;
+    max-height: 90vh;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+    animation: appleScaleIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: default;
+}
+
+.proctor-lightbox-content img {
+    max-width: 100%;
+    max-height: 85vh;
+    display: block;
+}
+
+.proctor-lightbox-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    font-size: 1.4rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    backdrop-filter: blur(8px);
+    z-index: 1;
+}
+
+.proctor-lightbox-close:hover {
+    background: rgba(207, 42, 39, 0.8);
+    transform: scale(1.1);
+}
+
+/* ========================================
+   HISTORY CARD — Flag Badges
+   ======================================== */
+.history-card-actions-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.history-flag-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.history-flag-badge.clean {
+    background: rgba(0, 168, 98, 0.08);
+    color: var(--success);
+}
+
+.history-flag-badge.flagged {
+    background: rgba(207, 42, 39, 0.08);
+    color: var(--danger);
+}
+
+/* Responsive — Proctor Log */
+@media (max-width: 640px) {
+    .proctor-log-section {
+        padding: 20px 16px;
+    }
+    .proctor-log-item-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    .proctor-log-item-time {
+        margin-left: 0;
+    }
+    .proctor-log-thumbnail {
+        width: 160px;
+        height: 120px;
+    }
+    .history-card-actions-left {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+}
+
+/* ========================================
+   GLOBAL RESPONSIVE ADJUSTMENTS
+   ======================================== */
+
+/* TABLET & SMALL DESKTOP (1024px and below) */
+@media (max-width: 1024px) {
+    .app-header {
+        padding: 12px 20px;
+    }
+    .upload-card {
+        padding: 30px;
+        max-width: 90%;
+    }
+    .hero-title {
+        font-size: 1.8rem;
+    }
+    .interview-container {
+        max-width: 90%;
+    }
+    .proctoring-video-container {
+        width: 100%;
+        max-width: 480px;
+        margin: 0 auto;
+    }
+    .report-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* TABLET PORTRAIT & LARGE PHONES (768px and below) */
+@media (max-width: 768px) {
+    /* Header & Navigation */
+    .app-header {
+        padding: 10px 16px;
+        margin: 8px 10px 0;
+        flex-wrap: wrap;
+        border-radius: 20px;
+    }
+    
+    .logo-text {
+        font-size: 1rem;
+    }
+
+    .header-actions {
+        gap: 8px;
+    }
+    
+    .nav-btn {
+        padding: 6px 10px;
+        font-size: 0.85rem;
+    }
+    
+    .nav-btn svg {
+        display: none; /* Hide icons in buttons to save space on mobile */
+    }
+
+    /* Main Layout Containers */
+    .app-main {
+        padding: 16px 12px 32px;
+    }
+
+    .upload-card {
+        flex-direction: column;
+        padding: 24px 16px;
+        text-align: center;
+        max-width: 100%;
+        border-radius: 16px;
+    }
+
+    .upload-card-left {
+        align-items: center;
+    }
+
+    .upload-card-right {
+        border-left: none;
+        border-top: 1px solid var(--border);
+        padding-left: 0;
+        padding-top: 24px;
+        width: 100%;
+    }
+    
+    .hero-title {
+        font-size: 1.6rem;
+    }
+
+    /* Pre-Interview Check */
+    .system-check-card {
+        padding: 20px;
+        margin: 10px;
+    }
+    .check-list {
+        grid-template-columns: 1fr;
+    }
+
+    /* Modals */
+    .about-modal, .auth-modal-panel {
+        padding: 24px 20px;
+        width: 95vw;
+        max-width: 95vw;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    /* Interview Phase */
+    .interview-container {
+        padding: 0;
+        gap: 16px;
+        width: 100%;
+    }
+    
+    .agent-avatar {
+        width: 90px;
+        height: 90px;
+    }
+    
+    .agent-icon {
+        font-size: 2.2rem;
+    }
+    
+    .transcript-box {
+        padding: 16px;
+        font-size: 1rem;
+    }
+    
+    .controls {
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px 12px;
+    }
+    
+    .controls-main {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-record, .btn-stop {
+        width: 100%;
+        padding: 14px;
+        font-size: 1rem;
+    }
+    
+    /* Final Report */
+    .report-container {
+        padding: 24px 16px;
+        margin: 0;
+        width: 100%;
+    }
+    
+    .score-circle {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .score-value {
+        font-size: 2.5rem;
+    }
+    
+    .report-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .metric-card, .feedback-card {
+        padding: 16px;
+    }
+    
+    /* History List */
+    .history-container {
+        padding: 20px 16px;
+        margin: 0;
+        width: 100%;
+    }
+
+    .history-list {
+        grid-template-columns: 1fr;
+    }
+    
+    .history-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 16px;
+    }
+    
+    .history-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .history-actions .btn {
+        flex: 1;
+    }
+}
+
+/* SMALL PHONES (480px and below) */
+@media (max-width: 480px) {
+    /* Even smaller adjustments for very narrow phones */
+    .app-header {
+        padding: 8px 12px;
+    }
+    .logo-text {
+        display: none;
+    }
+    .logo {
+        gap: 0;
+    }
+    .header-actions {
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 10px;
+    }
+    .feature-pills {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .hero-title {
+        font-size: 1.4rem;
+    }
+    .hero-subtitle {
+        font-size: 0.85rem;
+    }
+    .upload-card {
+        padding: 16px 12px;
+    }
+    .about-modal {
+        padding: 16px 12px;
+    }
+    .agent-avatar {
+        width: 70px;
+        height: 70px;
+    }
+    .agent-icon {
+        font-size: 1.8rem;
+    }
+    .question-bubble {
+        padding: 12px;
+        font-size: 1.1rem;
+    }
+    .transcript-box {
+        padding: 12px;
+        font-size: 0.95rem;
+    }
+    .score-circle {
+        width: 100px;
+        height: 100px;
+    }
+    .score-value {
+        font-size: 2rem;
+    }
+    .history-actions {
+        flex-direction: column;
+    }
+    .history-actions .btn {
+        width: 100%;
+    }
+}
+
+/* EXTRA NARROW SCREENS (360px and below) */
+@media (max-width: 360px) {
+    .hero-title {
+        font-size: 1.2rem;
+    }
+    .app-main {
+        padding: 10px 8px 24px;
+    }
+    .nav-btn {
+        padding: 4px 8px;
+        font-size: 0.75rem;
     }
 }
