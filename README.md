@@ -1,6 +1,6 @@
 # InterviewAI - Live Link : https://ai-interview-agent-bot.vercel.app/
 
-A modern, AI-powered interview platform that adaptively generates technical questions based on your resume. Built with **React**, **FastAPI**, and **Groq (Llama 3.3)**.
+A modern, AI-powered interview platform that adaptively generates technical questions based on your resume with live camera and tab switch proctoring. Built with **React**, **FastAPI**, and **Groq (Llama 3.3)**.
 
 ## 🚀 Features
 
